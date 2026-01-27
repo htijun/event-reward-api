@@ -65,3 +65,13 @@ RESTful API 기반의 이벤트·리워드 서버입니다.
 - `POST /admin/approvals/{id}/approve`
 - `POST /admin/approvals/{id}/reject`
 - `GET  /admin/approvals/{id}`
+
+## 실행 방법 (Docker)
+
+### 실행 환경
+- Docker Desktop (Windows / macOS)
+- 또는 Docker Engine + Docker Compose (Linux)
+
+### 서버 실행
+```bash
+docker compose up --build
