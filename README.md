@@ -77,5 +77,5 @@ RESTful API 기반의 이벤트·리워드 서버입니다.
 docker compose up --build
 
 로컬에서 8001이 사용 중이면 compose.yaml의 "8001:8000"에서 8001을 다른 포트로 변경하세요.
-
 Windows/macOS는 Docker Desktop을 실행한 상태에서 명령을 실행하세요.
+compose.yaml이 있는 프로젝트 루트에서 명령을 실행하세요.
