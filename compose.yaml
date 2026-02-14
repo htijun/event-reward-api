@@ -1,0 +1,28 @@
+services:
+  app:
+    build: .
+    working_dir: /app
+    volumes:
+      - ./:/app
+    ports:
+      - "8001:8000"
+    depends_on:
+      - db
+    command: php -S 0.0.0.0:8000 -t public
+
+  db:
+    image: mysql:8.0
+    container_name: event-reward-mysql
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: event_reward
+      MYSQL_USER: app
+      MYSQL_PASSWORD: app123
+    ports:
+      - "3306:3306"
+    volumes:
+      - db_data:/var/lib/mysql
+
+volumes:
+  db_data:
