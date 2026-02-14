@@ -1,0 +1,12 @@
+# env
+.env
+
+# docker
+db_data/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# logs
+*.log
