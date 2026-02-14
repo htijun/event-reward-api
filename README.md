@@ -79,3 +79,26 @@ docker compose up --build
 로컬에서 8001이 사용 중이면 compose.yaml의 "8001:8000"에서 8001을 다른 포트로 변경하세요.
 Windows/macOS는 Docker Desktop을 실행한 상태에서 명령을 실행하세요.
 compose.yaml이 있는 프로젝트 루트에서 명령을 실행하세요.
+
+
+이 프로젝트는 로컬 Docker 기반 개발/포트폴리오 용도로 설계되었습니다.
+DB 접속 정보는 코드에 직접 하드코딩하지 않고,
+루트 디렉토리의 .env 파일을 통해 주입됩니다.
+
+1. .env 설정 방법
+.env.example 파일을 복사하여 .env 파일을 생성합니다.
+
+copy .env.example .env   # Windows
+# 또는
+cp .env.example .env     # macOS / Linux
+
+2. .env 파일 안의 값을 확인하거나 수정합니다.
+
+ex) MYSQL_ROOT_PASSWORD=change-me
+MYSQL_DATABASE=event_reward
+MYSQL_USER=app
+MYSQL_PASSWORD=change-me
+
+3. Docker를 실행합니다.
+
+docker compose up --build
