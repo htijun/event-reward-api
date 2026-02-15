@@ -77,10 +77,23 @@ CREATE TABLE IF NOT EXISTS reward_grant_log (
   source_type   VARCHAR(32) NOT NULL,
   source_id     VARCHAR(64) NOT NULL,
   request_id    VARCHAR(128) DEFAULT NULL,
+
+  -- GM 승인/거절 상태
+  status        ENUM('pending','approved','rejected') NOT NULL DEFAULT 'approved',
+  approved_by   BIGINT UNSIGNED NULL,
+  approved_at   DATETIME NULL,
+  rejected_by   BIGINT UNSIGNED NULL,
+  rejected_at   DATETIME NULL,
+  decision_reason VARCHAR(255) NULL,
+
   created_at    DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
   PRIMARY KEY (grant_idx),
   KEY idx_grant_user (user_id),
   KEY idx_grant_source (source_type, source_id),
-  UNIQUE KEY uq_grant_request (request_id)
+  UNIQUE KEY uq_grant_request (request_id),
+
+  -- 상태 조회 최적화(운영자가 pending 목록 자주 봄)
+  KEY idx_grant_status (status),
+  KEY idx_grant_pending (status, created_at)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;

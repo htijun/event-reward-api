@@ -1,6 +1,8 @@
 services:
   app:
-    build: .
+    build:
+      context: .
+      dockerfile: Dockerfile
     container_name: event-reward-api
     ports:
       - "8001:8000"
@@ -16,15 +18,15 @@ services:
     container_name: event-reward-mysql
     restart: always
     environment:
-      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
-      MYSQL_DATABASE: ${MYSQL_DATABASE}
-      MYSQL_USER: ${MYSQL_USER}
-      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+      MYSQL_ROOT_PASSWORD: ${DB_PASS}
+      MYSQL_DATABASE: ${DB_NAME}
+      MYSQL_USER: ${DB_USER}
+      MYSQL_PASSWORD: ${DB_PASS}
     ports:
       - "3306:3306"
     volumes:
       - db_data:/var/lib/mysql
+      - ./docker/mysql/init:/docker-entrypoint-initdb.d
 
-  volumes:
-    - db_data:/var/lib/mysql
-    - ./docker/mysql/init:/docker-entrypoint-initdb.d
+volumes:
+  db_data:
