@@ -19,4 +19,10 @@ final class Request {
         $data = json_decode($raw, true);
         return is_array($data) ? $data : [];
     }
+
+    public function header(string $name): ?string
+    {
+        $key = 'HTTP_' . strtoupper(str_replace('-', '_', $name));
+        return $_SERVER[$key] ?? null;
+    }
 }
