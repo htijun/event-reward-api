@@ -1,71 +1,127 @@
 # event-reward-api
 
-RESTful API 기반의 이벤트·리워드 서버입니다.  
-출석 보상, 포인트(재화) 지급, 확률형 이벤트(룰렛), 관리자 승인 처리(운영툴) 등을 서버에서 처리하도록 설계했습니다.  
-보상 중복 지급 방지와 데이터 정합성을 최우선으로 고려했습니다.
+RESTful API 기반의 모바일 게임 이벤트/리워드 서버 포트폴리오 프로젝트입니다.
+확률형 룰렛 이벤트, 보상 지급 처리, 운영자 승인(운영툴) 기능을 서버에서 담당하도록 설계했습니다.
+핵심 목표: 보상 중복 지급 방지와 데이터 정합성 보장
 
-## 주요 기능
-- **일일 출석 보상**: 1일 1회 지급, 중복 요청 방지
-- **포인트(재화) 지급**: 지급 로그 기반 idempotent 처리
-- **룰렛 이벤트(확률형 보상)**: 서버에서 확률 테이블 기반 결과 산출 + 보상 지급
-- **관리자 승인 처리(운영툴)**: pending → approved/rejected 상태 전이, 중복 승인 방지 및 감사 로그 기록
+### 주요 기능
 
-## 인증/권한
-- 인증은 **JWT** 기반입니다.
-- 이벤트/보상 API는 인증 토큰을 요구하며, 관리자 승인 API는 **admin 권한**을 요구합니다.
+1. 룰렛 이벤트 (확률형 보상)
 
-## 룰렛 기회 정책 (1일 1회 + 보너스 기회)
-룰렛은 기본적으로 사용자당 1일 1회(daily) 실행 가능하며,  
-미션 완료/광고 시청/운영 지급 등 특정 조건을 만족하면 **보너스 기회(bonus)**를 추가로 획득할 수 있습니다.  
-보너스 기회는 수량 제한을 고정하지 않고, 정책/이벤트에 따라 유연하게 확장 가능한 구조로 설계했습니다.
+서버에서 가중치(weight) 기반 확률 계산
+request_id 기반 idempotent 처리
+daily 1회 + bonus 티켓 구조 지원
+스핀 로그 + 지급 로그를 트랜잭션으로 묶어 원자성 보장
 
-- daily 스핀: 1일 1회 제한
-- bonus 스핀: **보너스 티켓(issued)** 보유 시, 티켓 **1개당 1회** 실행
-- 정합성: 스핀 기록/보상 지급/티켓 사용 처리를 **트랜잭션**으로 처리
-- 추적성: 스핀 로그 및 지급 로그를 남겨 운영 이슈 시 감사/재현이 가능
+2. 보너스 티켓 구조
+roulette_bonus_tickets 테이블로 가변 수량 관리
+bonus 스핀 시 FOR UPDATE로 티켓 1장 차감
+used / issued 상태 전이 관리
+
+3️.보상 지급 로그
+
+reward_grant_log 테이블에 지급 내역 저장
+point 보상은 즉시 approved
+그 외 보상은 pending → GM 승인 필요
+request_id unique 제약으로 중복 지급 방지
+
+4️. 관리자 승인(운영툴)
+
+### X-GM-KEY 헤더 기반 인증
+
+pending → approved / rejected 상태 전이
+중복 승인 방지 (status='pending' 조건 업데이트)
+모든 승인/거절은 gm_actions_log에 기록
+
+### 인증 방식
+
+GM API
+인증 방식: X-GM-KEY 헤더
+서버의 .env에 정의된 GM_API_KEY와 hash_equals 비교
+내부 운영용 API를 가정한 단순 Key 기반 인증 구조
 
 ## DB 설계 요약 (핵심 테이블)
-보상 중복 지급과 동시 요청에 의한 데이터 불일치를 방지하기 위해  
-지급 로그 및 이벤트 로그 중심으로 테이블을 구성했습니다.
+roulette_rewards
 
-- `roulette_rewards`: 이벤트별 보상/가중치(확률) 테이블
-- `roulette_spins`: 스핀 요청/결과 로그 (`request_id` unique)
-- `roulette_bonus_tickets`: 보너스 기회(티켓) 발급/사용 상태 관리 (가변 수량 지원)
-- `reward_grant_log`: 포인트/보상 지급 로그 (`source_type`/`source_id`로 추적)
+이벤트별 보상 및 확률(weight) 정의 테이블
+roulette_spins
 
-## 트랜잭션 및 동시요청 대응
-룰렛/출석/운영 지급처럼 중복 요청 시 치명적인 기능은 idempotent하게 처리했습니다.
+스핀 로그 저장
+request_id UNIQUE
+daily 1회 제한: daily_key GENERATED + UNIQUE
+roulette_bonus_tickets
 
-- **request_id 기반 중복 방지**: 동일 요청이 재시도되어도 스핀/지급이 중복되지 않도록 `request_id`에 unique 제약을 적용
-- **트랜잭션 처리**: 스핀 로그 기록 + 보상 지급 + (bonus인 경우) 티켓 used 처리를 하나의 트랜잭션으로 묶어 원자성 보장
-- **관리자 승인 중복 방지**: 승인 처리 시 `status='pending'` 조건 업데이트로 중복 승인을 방지하고 감사 로그를 기록
+보너스 기회 관리 테이블
+issued / used / expired 상태 관리
+reward_grant_log
 
-## API 엔드포인트
+보상 지급 로그
+status: approved / pending / rejected
+request_id UNIQUE
+gm_actions_log
 
-### Auth
-- `POST /auth/login`
-- `POST /auth/refresh` *(optional)*
+운영자 승인/거절 감사 로그
 
-### Attendance
-- `POST /attendance/check-in`
-- `GET  /attendance/status`
+### 트랜잭션 & 정합성 전략
+1. Idempotency
+request_id UNIQUE 제약
+동일 요청 재시도 시 중복 스핀/중복 지급 방지
 
-### Wallet / Rewards
-- `GET  /wallet`
-- `POST /wallet/grants`
-- `GET  /wallet/grants?from=&to=`
+2️. Daily 1회 강제 (DB 레벨)
+daily_key GENERATED COLUMN
+UNIQUE INDEX로 DB에서 직접 제한
 
-### Roulette Event
-- `GET  /events/roulette/status`
-- `POST /events/roulette/spin`
+3. Bonus 티켓 동시성 제어
+SELECT ... FOR UPDATE
+트랜잭션 내 티켓 사용 처리
 
-### Admin Approval (GM Tool)
-- `POST /admin/approvals`
-- `GET  /admin/approvals?status=pending`
-- `POST /admin/approvals/{id}/approve`
-- `POST /admin/approvals/{id}/reject`
-- `GET  /admin/approvals/{id}`
+4. 승인 중복 방지
+UPDATE ... WHERE status='pending'
+이미 승인된 건 재승인 불가
 
+### API 엔드포인트
+Roulette
+GET  /events/roulette/status
+POST /events/roulette/spin
+
+GM Tool
+GET  /gm/grants/pending?limit=50
+POST /gm/grants/approve
+POST /gm/grants/reject
+
+
+### GM API 호출 예시
+pending 조회
+curl.exe --% "http://localhost:8001/gm/grants/pending?limit=50" -H "X-GM-KEY: gm-secret-1234"
+승인
+curl.exe --% -X POST http://localhost:8001/gm/grants/approve ^
+  -H "Content-Type: application/json" -H "X-GM-KEY: gm-secret-1234" ^
+  -d "{\"grant_idx\":1,\"memo\":\"ok\"}"
+거절
+curl.exe --% -X POST http://localhost:8001/gm/grants/reject ^
+  -H "Content-Type: application/json" -H "X-GM-KEY: gm-secret-1234" ^
+  -d "{\"grant_idx\":1,\"reason\":\"fraud\"}"
+
+### 운영 검증 SQL
+최근 grant 상태
+SELECT grant_idx, request_id, amount, status, created_at
+FROM reward_grant_log
+ORDER BY grant_idx DESC
+LIMIT 20;
+
+pending 목록
+SELECT grant_idx, user_id, amount, request_id, created_at
+FROM reward_grant_log
+WHERE status='pending'
+ORDER BY created_at ASC;
+
+스핀-지급 정합성 추적
+SELECT s.request_id, s.reward_id, r.reward_type, r.reward_value, g.status
+FROM roulette_spins s
+JOIN roulette_rewards r ON r.event_id=s.event_id AND r.reward_id=s.reward_id
+JOIN reward_grant_log g ON g.request_id=s.request_id
+WHERE s.request_id='req-daily-1001';
+  
 ## 실행 방법 (Docker)
 
 ### 실행 환경
